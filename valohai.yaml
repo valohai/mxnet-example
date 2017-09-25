@@ -1,0 +1,6 @@
+---
+
+- step:
+    name: Train model
+    image: mxnet/python:gpu
+    command: python train.py
