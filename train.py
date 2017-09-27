@@ -1,20 +1,42 @@
 # Original: https://mxnet.incubator.apache.org/tutorials/python/mnist.html
-
+import gzip
 import json
 import logging
+import os
+import struct
 
 import mxnet as mx
+import numpy as np
 
 
-def print_accuracy(model, iter, title='accuracy'):
-    acc = mx.metric.Accuracy()
-    model.score(iter, acc)
-    print(json.dumps({title: acc.get()[1]}))
+def load_data():
+    inputs_dir = os.getenv('VH_INPUTS_DIR', '.inputs')
+    (train_labels, train_images) = read_data(
+        os.path.join(inputs_dir, 'training-set-labels/train-labels-idx1-ubyte.gz'),
+        os.path.join(inputs_dir, 'training-set-images/train-images-idx3-ubyte.gz'))
+    (test_labels, test_images) = read_data(
+        os.path.join(inputs_dir, 'test-set-labels/t10k-labels-idx1-ubyte.gz'),
+        os.path.join(inputs_dir, 'test-set-images/t10k-images-idx3-ubyte.gz'))
+    return {
+        'train_data': train_images,
+        'train_label': train_labels,
+        'test_data': test_images,
+        'test_label': test_labels
+    }
 
 
-def train():
-    mnist = mx.test_utils.get_mnist()
+def read_data(labels_file, images_file):
+    with gzip.open(labels_file) as file:
+        struct.unpack(">II", file.read(8))
+        label = np.fromstring(file.read(), dtype=np.int8)
+    with gzip.open(images_file, 'rb') as file:
+        _, _, rows, cols = struct.unpack(">IIII", file.read(16))
+        image = np.fromstring(file.read(), dtype=np.uint8).reshape(len(label), rows, cols)
+        image = image.reshape(image.shape[0], 1, 28, 28).astype(np.float32) / 255
+    return label, image
 
+
+def train(mnist):
     batch_size = 100
     train_iter = mx.io.NDArrayIter(mnist['train_data'], mnist['train_label'], batch_size, shuffle=True)
     val_iter = mx.io.NDArrayIter(mnist['test_data'], mnist['test_label'], batch_size)
@@ -45,7 +67,8 @@ def train():
                   optimizer_params={'learning_rate': 0.1},  # use fixed learning rate
                   eval_metric='acc',  # report accuracy during training
                   epoch_end_callback=lambda *args: print_accuracy(mlp_model, val_iter),
-                  batch_end_callback=mx.callback.Speedometer(batch_size, 100),  # output progress for each 100 data batches
+                  # output progress for each 100 data batches
+                  batch_end_callback=mx.callback.Speedometer(batch_size, 100),
                   num_epoch=10)  # train for at most 10 dataset passes
 
     test_iter = mx.io.NDArrayIter(mnist['test_data'], None, batch_size)
@@ -60,5 +83,12 @@ def train():
     assert acc.get()[1] > 0.96
 
 
+def print_accuracy(model, iter, title='accuracy'):
+    acc = mx.metric.Accuracy()
+    model.score(iter, acc)
+    print(json.dumps({title: acc.get()[1]}))
+
+
 if __name__ == '__main__':
-    train()
+    mnist = load_data()
+    train(mnist)
