@@ -3,7 +3,7 @@
 - step:
     name: Train model
     image: mxnet/python:gpu
-    command: python train.py
+    command: python train.py {parameters}
     inputs:
       - name: training-set-images
         default: https://valohai-mnist.s3.amazonaws.com/train-images-idx3-ubyte.gz
@@ -13,3 +13,14 @@
         default: https://valohai-mnist.s3.amazonaws.com/t10k-images-idx3-ubyte.gz
       - name: test-set-labels
         default: https://valohai-mnist.s3.amazonaws.com/t10k-labels-idx1-ubyte.gz
+    parameters:
+      - name: max_epochs
+        pass-as: --max_epochs={v}
+        description: Number of epochs to train
+        type: integer
+        default: 10
+      - name: learning_rate
+        pass-as: --learning_rate={v}
+        description: Initial learning rate
+        type: float
+        default: 0.1

@@ -1,4 +1,5 @@
 # Original: https://mxnet.incubator.apache.org/tutorials/python/mnist.html
+import argparse
 import gzip
 import json
 import logging
@@ -36,7 +37,7 @@ def read_data(labels_file, images_file):
     return label, image
 
 
-def train(mnist):
+def train(mnist, flags):
     batch_size = 100
     train_iter = mx.io.NDArrayIter(mnist['train_data'], mnist['train_label'], batch_size, shuffle=True)
     val_iter = mx.io.NDArrayIter(mnist['test_data'], mnist['test_label'], batch_size)
@@ -64,12 +65,12 @@ def train(mnist):
     mlp_model.fit(train_iter,  # train data
                   eval_data=val_iter,  # validation data
                   optimizer='sgd',  # use SGD to train
-                  optimizer_params={'learning_rate': 0.1},  # use fixed learning rate
+                  optimizer_params={'learning_rate': flags.learning_rate},
                   eval_metric='acc',  # report accuracy during training
                   epoch_end_callback=lambda *args: print_accuracy(mlp_model, val_iter),
                   # output progress for each 100 data batches
                   batch_end_callback=mx.callback.Speedometer(batch_size, 100),
-                  num_epoch=10)  # train for at most 10 dataset passes
+                  num_epoch=flags.max_epochs)
 
     test_iter = mx.io.NDArrayIter(mnist['test_data'], None, batch_size)
     prob = mlp_model.predict(test_iter)
@@ -80,7 +81,6 @@ def train(mnist):
     acc = mx.metric.Accuracy()
     mlp_model.score(test_iter, acc)
     print_accuracy(mlp_model, test_iter, 'final_accuracy')
-    assert acc.get()[1] > 0.96
 
 
 def print_accuracy(model, iter, title='accuracy'):
@@ -90,5 +90,12 @@ def print_accuracy(model, iter, title='accuracy'):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--max_epochs', type=int, default=10,
+                        help='Number of epochs to train')
+    parser.add_argument('--learning_rate', type=float, default=0.1,
+                        help='Initial learning rate')
+    flags, _ = parser.parse_known_args()
+
     mnist = load_data()
-    train(mnist)
+    train(mnist, flags)
