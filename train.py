@@ -82,11 +82,19 @@ def train(mnist, flags):
     mlp_model.score(test_iter, acc)
     print_accuracy(mlp_model, test_iter, 'final_accuracy')
 
+    save_model(mlp_model, flags.max_epochs)
+
 
 def print_accuracy(model, iter, title='accuracy'):
     acc = mx.metric.Accuracy()
     model.score(iter, acc)
     print(json.dumps({title: acc.get()[1]}))
+
+
+def save_model(model, epoch):
+    outputs_dir = os.getenv('VH_OUTPUTS_DIR', '.outputs')
+    path = os.path.join(outputs_dir, 'mnist')
+    model.save_checkpoint(path, epoch)
 
 
 if __name__ == '__main__':
