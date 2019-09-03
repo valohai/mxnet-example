@@ -1,0 +1,4 @@
+graphviz~=0.8
+mxnet
+numpy
+requests
