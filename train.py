@@ -21,7 +21,7 @@ else:
 
 
 def load_data():
-    inputs_dir = os.getenv('VH_INPUTS_DIR', '.inputs')
+    inputs_dir = os.getenv('VH_INPUTS_DIR', './inputs')
     (train_labels, train_images) = read_data(
         os.path.join(inputs_dir, 'training-set-labels/train-labels-idx1-ubyte.gz'),
         os.path.join(inputs_dir, 'training-set-images/train-images-idx3-ubyte.gz'))
