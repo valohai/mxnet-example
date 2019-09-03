@@ -8,6 +8,16 @@ import struct
 
 import mxnet as mx
 import numpy as np
+import mxnet.runtime
+fs = mx.runtime.Features()
+
+context = mx.cpu()
+if fs.is_enabled('CUDA'):
+    print('CUDA enabled, using GPU context.')
+    context = mx.gpu()
+else:
+    print('CUDA not enabled, running on CPU.')
+    context = mx.cpu()
 
 
 def load_data():
@@ -60,8 +70,8 @@ def train(mnist, flags):
     mlp = mx.sym.SoftmaxOutput(data=fc3, name='softmax')
 
     logging.getLogger().setLevel(logging.DEBUG)  # logging to stdout
-    # create a trainable module on CPU
-    mlp_model = mx.mod.Module(symbol=mlp, context=mx.gpu(0))
+    # create a trainable module
+    mlp_model = mx.mod.Module(symbol=mlp, context=context)
     mlp_model.fit(train_iter,  # train data
                   eval_data=val_iter,  # validation data
                   optimizer='sgd',  # use SGD to train
