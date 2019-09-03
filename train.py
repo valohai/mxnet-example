@@ -9,6 +9,7 @@ import struct
 import mxnet as mx
 import numpy as np
 import mxnet.runtime
+
 fs = mx.runtime.Features()
 
 context = mx.cpu()
@@ -19,20 +20,24 @@ else:
     print('CUDA not enabled, running on CPU.')
     context = mx.cpu()
 
+inputs_dir = os.getenv('VH_INPUTS_DIR', './inputs')
+outputs_dir = os.getenv('VH_OUTPUTS_DIR', '.outputs')
+
 
 def load_data():
-    inputs_dir = os.getenv('VH_INPUTS_DIR', './inputs')
     (train_labels, train_images) = read_data(
         os.path.join(inputs_dir, 'training-set-labels/train-labels-idx1-ubyte.gz'),
-        os.path.join(inputs_dir, 'training-set-images/train-images-idx3-ubyte.gz'))
+        os.path.join(inputs_dir, 'training-set-images/train-images-idx3-ubyte.gz'),
+    )
     (test_labels, test_images) = read_data(
         os.path.join(inputs_dir, 'test-set-labels/t10k-labels-idx1-ubyte.gz'),
-        os.path.join(inputs_dir, 'test-set-images/t10k-images-idx3-ubyte.gz'))
+        os.path.join(inputs_dir, 'test-set-images/t10k-images-idx3-ubyte.gz'),
+    )
     return {
         'train_data': train_images,
         'train_label': train_labels,
         'test_data': test_images,
-        'test_label': test_labels
+        'test_label': test_labels,
     }
 
 
@@ -42,14 +47,18 @@ def read_data(labels_file, images_file):
         label = np.fromstring(file.read(), dtype=np.int8)
     with gzip.open(images_file, 'rb') as file:
         _, _, rows, cols = struct.unpack(">IIII", file.read(16))
-        image = np.fromstring(file.read(), dtype=np.uint8).reshape(len(label), rows, cols)
+        image = np.fromstring(file.read(), dtype=np.uint8).reshape(
+            len(label), rows, cols
+        )
         image = image.reshape(image.shape[0], 1, 28, 28).astype(np.float32) / 255
     return label, image
 
 
 def train(mnist, flags):
     batch_size = 100
-    train_iter = mx.io.NDArrayIter(mnist['train_data'], mnist['train_label'], batch_size, shuffle=True)
+    train_iter = mx.io.NDArrayIter(
+        mnist['train_data'], mnist['train_label'], batch_size, shuffle=True
+    )
     val_iter = mx.io.NDArrayIter(mnist['test_data'], mnist['test_label'], batch_size)
 
     data = mx.sym.var('data')
@@ -72,15 +81,17 @@ def train(mnist, flags):
     logging.getLogger().setLevel(logging.DEBUG)  # logging to stdout
     # create a trainable module
     mlp_model = mx.mod.Module(symbol=mlp, context=context)
-    mlp_model.fit(train_iter,  # train data
-                  eval_data=val_iter,  # validation data
-                  optimizer='sgd',  # use SGD to train
-                  optimizer_params={'learning_rate': flags.learning_rate},
-                  eval_metric='acc',  # report accuracy during training
-                  epoch_end_callback=lambda *args: print_accuracy(mlp_model, val_iter),
-                  # output progress for each 100 data batches
-                  batch_end_callback=mx.callback.Speedometer(batch_size, 100),
-                  num_epoch=flags.max_epochs)
+    mlp_model.fit(
+        train_iter,  # train data
+        eval_data=val_iter,  # validation data
+        optimizer='sgd',  # use SGD to train
+        optimizer_params={'learning_rate': flags.learning_rate},
+        eval_metric='acc',  # report accuracy during training
+        epoch_end_callback=lambda *args: print_accuracy(mlp_model, val_iter),
+        # output progress for each 100 data batches
+        batch_end_callback=mx.callback.Speedometer(batch_size, 100),
+        num_epoch=flags.max_epochs,
+    )
 
     test_iter = mx.io.NDArrayIter(mnist['test_data'], None, batch_size)
     prob = mlp_model.predict(test_iter)
@@ -102,17 +113,18 @@ def print_accuracy(model, iter, title='accuracy'):
 
 
 def save_model(model, epoch):
-    outputs_dir = os.getenv('VH_OUTPUTS_DIR', '.outputs')
     path = os.path.join(outputs_dir, 'mnist')
     model.save_checkpoint(path, epoch)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--max_epochs', type=int, default=10,
-                        help='Number of epochs to train')
-    parser.add_argument('--learning_rate', type=float, default=0.1,
-                        help='Initial learning rate')
+    parser.add_argument(
+        '--max_epochs', type=int, default=10, help='Number of epochs to train'
+    )
+    parser.add_argument(
+        '--learning_rate', type=float, default=0.1, help='Initial learning rate'
+    )
     flags, _ = parser.parse_known_args()
 
     mnist = load_data()
